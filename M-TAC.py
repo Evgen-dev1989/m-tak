@@ -97,7 +97,7 @@ class Category(object):
         self.endpoint = None
         self.response = None
         self.all_href = []
-
+        self.__hash__ = None
     def showall(self):
         print(f'name {self.name}, link {self.link} ')
         if len(self.subgroups) != 0:
@@ -173,14 +173,14 @@ class Category(object):
             for i, href in enumerate(card_product_head):
                 link = 'https://militarist.ua' + href.get('href')
                 name = href.find('span').text
-                hash = link.hash()
+                hash2 = hash(link)
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
-                if hash not in hashes:
-                    hashes.append(hash)
+                if hash2 not in hashes:
+                    hashes.append(hash2)
                     product = Product(name)
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
-                    product.hash = hash
+                    product.hash = hash2
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -193,8 +193,7 @@ class Category(object):
             name = []
             price = []
             link = []
-            products = set(self.products)
-            for prod in products:
+            for prod in self.products:
                 name.append(prod.name)
                 price.append(prod.price)
                 link.append(prod.link)
@@ -259,6 +258,7 @@ class Product():
 
 
     def __init__(self, name):
+        self.hashes = []
         self.name = name
         self.hash = None
         self.price = []
