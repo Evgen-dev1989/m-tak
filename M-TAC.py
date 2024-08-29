@@ -169,17 +169,20 @@ class Category(object):
             card_product_head: HtmlElement = html.fromstring(endpoint.response.text).xpath('.//div[@class="card_product-head"]/a')
             card_product_bottom: HtmlElement = html.fromstring(endpoint.response.text).xpath('.//div[@class="card_product-bottom"]')
          
-         
+            hashes = []
             for i, href in enumerate(card_product_head):
                 link = 'https://militarist.ua' + href.get('href')
                 name = href.find('span').text
+                hash = link.hash()
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
-                product = Product(name)
-                product.link = link
-                product.price = int(price.replace(' ', '').replace('грн.', ''))
-
-                #print(f'name: {product.name}, price: {product.price}')
-                self.products.append(product)
+                if hash not in hashes:
+                    hashes.append(hash)
+                    product = Product(name)
+                    product.link = link
+                    product.price = int(price.replace(' ', '').replace('грн.', ''))
+                    product.hash = hash
+                    #print(f'name: {product.name}, price: {product.price}')
+                    self.products.append(product)
 
        
     def get_all_products(self):
@@ -187,7 +190,6 @@ class Category(object):
             for sub in self.subgroups:
                 sub.get_all_products()
         if len(self.products)>0:
-           
             name = []
             price = []
             link = []
@@ -254,18 +256,11 @@ class Category(object):
 
 class Product():
 
- 
-    __instance = None
 
-    def __new__(cls, name, *args, **kwargs):
-        if not cls.__instance:
-            cls._instance = super().__new__(cls, *args, **kwargs)
-        return cls._instance
-
-        
 
     def __init__(self, name):
         self.name = name
+        self.hash = None
         self.price = []
         self.link = []
         
