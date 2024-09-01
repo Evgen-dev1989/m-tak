@@ -29,23 +29,39 @@ url = 'https://militarist.ua/ua/'
 
 conn = psycopg2.connect(**load_config())
 
+commands = (
+        """
+            DROP TABLE IF EXISTS products CASCADE;
+        """,
+            """
+            DROP TABLE IF EXISTS products_data CASCADE;
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS products(
+            product_id SERIAL PRIMARY KEY,
+            name VARCHAR(250) NOT NULL,
+            link VARCHAR(250) NOT NULL
+            )
+        """,
+         """
+        CREATE TABLE IF NOT EXISTS products_data (
+                data_id SERIAL PRIMARY KEY,
+                product_id INTEGER,
+                price INTEGER NOT NULL,
+                time timestamp NOT NULL,
+                FOREIGN KEY (product_id)
+                REFERENCES products (product_id)
+                ON UPDATE CASCADE ON DELETE CASCADE
+                )
+        """      
+)
 
 try:
     config = load_config()
     with psycopg2.connect(**config) as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-            DROP TABLE mtak;
-        """)
-            cur.execute("""
-        CREATE TABLE IF NOT EXISTS mtak(
-            id SERIAL PRIMARY KEY,
-            time timestamp NOT NULL,
-            name VARCHAR(250) NOT NULL,
-            price INTEGER NOT NULL,
-            link VARCHAR(250) NOT NULL
-        )
-        """)
+            for command in commands:
+                cur.execute(command)
 except (psycopg2.DatabaseError, Exception) as error:
     print(error)
 
@@ -208,19 +224,23 @@ class Category(object):
                     with  conn.cursor() as cursor:
                         # for prod in self.products:
                         #     cursor.execute("INSERT INTO mtak(name, price, link) VALUES(%s,%s,%s)", (prod.name, prod.price, prod.link))
-                        values = []
+
+                        values_products = []
+                        values_dates = []
                 
-                        
                         time = datetime.datetime.now()
                         time = time.strftime("%Y-%m-%d %H:%M:%S") 
                         for prod in self.products:
-                            values.append((time, prod.name, prod.price, prod.link))
-                        cursor.executemany("INSERT INTO mtak(time, name, price, link) VALUES(%s,%s,%s,%s)", values)
-                        sql1 = '''select * from mtak;'''
+                            values_products.append((prod.name, prod.link))
+                            values_dates.append((time, prod.price))
+                        cursor.executemany("INSERT INTO products(name, link) VALUES(%s,%s)", values_products)
+                        cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
+                        sql1 = '''select * from products_data;'''
                         cursor.execute(sql1)
 
                         for i in cursor.fetchall():
                             print(i)
+                 
                  
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
