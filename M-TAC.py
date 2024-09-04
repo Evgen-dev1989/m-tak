@@ -39,6 +39,7 @@ commands = (
         """
         CREATE TABLE IF NOT EXISTS products(
             product_id SERIAL PRIMARY KEY,
+            hash BIGINT,
             name VARCHAR(250) NOT NULL,
             link VARCHAR(250) NOT NULL
             )
@@ -197,6 +198,7 @@ class Category(object):
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash2
+                    print(type(product.hash))
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -205,7 +207,7 @@ class Category(object):
         if len(self.subgroups)>0:
             for sub in self.subgroups:
                 sub.get_all_products()
-        if len(self.products)>0:
+        if len(self.products)>0 and self.products:
             name = []
             price = []
             link = []
@@ -231,15 +233,15 @@ class Category(object):
                         time = datetime.datetime.now()
                         time = time.strftime("%Y-%m-%d %H:%M:%S") 
                         for prod in self.products:
-                            values_products.append((prod.name, prod.link))
+                            values_products.append((prod.hash, prod.name, prod.link))
                             values_dates.append((time, prod.price))
-                        cursor.executemany("INSERT INTO products(name, link) VALUES(%s,%s)", values_products)
+                        cursor.executemany("INSERT INTO products(hash, name, link) VALUES(%s,%s,%s)", values_products)
                         cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
                         sql1 = '''select * from products_data;'''
                         cursor.execute(sql1)
 
-                        for i in cursor.fetchall():
-                            print(i)
+                        # for i in cursor.fetchall():
+                        #     print(i)
                  
                  
                     conn.commit()
