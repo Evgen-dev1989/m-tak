@@ -193,12 +193,13 @@ class Category(object):
                 hash2 = hash(link)
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
                 if hash2 not in hashes:
+              
                     hashes.append(hash2)
                     product = Product(name)
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash2
-                    print(type(product.hash))
+        
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -271,6 +272,24 @@ class Category(object):
             with pd.ExcelWriter('path_to_file.xlsx') as writer:
                 table.to_excel(writer)
 
+    def refresh_products(self):
+
+        try:
+                with  psycopg2.connect(**config) as conn:
+                    with  conn.cursor() as cursor:
+                        # for prod in self.products:
+                        #     cursor.execute("INSERT INTO mtak(name, price, link) VALUES(%s,%s,%s)", (prod.name, prod.price, prod.link))
+
+                        sql1 = '''select hash from products;'''
+                        cursor.execute(sql1)
+
+                        for i in cursor.fetchall():
+                            print(i)
+                 
+                 
+                    conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+                print(error) 
 
         
         
@@ -359,7 +378,7 @@ async def main():
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
     root.get_all_products()
-
+    root.refresh_products()
 
 
     print(f'Время прошло{time.monotonic() - start_time}')
