@@ -225,8 +225,6 @@ class Category(object):
             try:
                 with  psycopg2.connect(**config) as conn:
                     with  conn.cursor() as cursor:
-                        # for prod in self.products:
-                        #     cursor.execute("INSERT INTO mtak(name, price, link) VALUES(%s,%s,%s)", (prod.name, prod.price, prod.link))
 
                         values_products = []
                         values_dates = []
@@ -272,22 +270,36 @@ class Category(object):
             with pd.ExcelWriter('path_to_file.xlsx') as writer:
                 table.to_excel(writer)
 
+
+
     def refresh_products(self):
-
         try:
-                with  psycopg2.connect(**config) as conn:
-                    with  conn.cursor() as cursor:
-                        # for prod in self.products:
-                        #     cursor.execute("INSERT INTO mtak(name, price, link) VALUES(%s,%s,%s)", (prod.name, prod.price, prod.link))
+            config = load_config()
 
-                        sql1 = '''select hash from products;'''
-                        cursor.execute(sql1)
+            with  psycopg2.connect(**config) as conn:
+                with  conn.cursor() as cursor:
 
-                        for i in cursor.fetchall():
-                            print(i)
-                 
-                 
-                    conn.commit()
+                    sql1 = '''select hash from products;'''
+                    cursor.execute(sql1)
+                    for i in self.products:
+                        for item in cursor.fetchall():
+                            if i.hash != item:
+                                values_products = []
+                                values_dates = []
+                        
+                                time = datetime.datetime.now()
+                                time = time.strftime("%Y-%m-%d %H:%M:%S") 
+                                for prod in self.products:
+                                    values_products.append((prod.hash, prod.name, prod.link))
+                                    values_dates.append((time, prod.price))
+                                cursor.executemany("UPDATE products(hash, name, link) VALUES(%s,%s,%s)", values_products)
+                                cursor.executemany("UPDATE products_data(time, price) VALUES(%s,%s)", values_dates)
+                            
+
+
+  
+                        
+                conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
                 print(error) 
 
