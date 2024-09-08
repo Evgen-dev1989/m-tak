@@ -24,6 +24,7 @@ from config import load_config
 import json
 from json import dumps, loads
 s = Session()
+import hashlib
 
 url = 'https://militarist.ua/ua/'
 
@@ -39,7 +40,7 @@ commands = (
         """
         CREATE TABLE IF NOT EXISTS products(
             product_id SERIAL PRIMARY KEY,
-            hash BIGINT,
+            hash BYTEA,
             name VARCHAR(250) NOT NULL,
             link VARCHAR(250) NOT NULL
             )
@@ -190,15 +191,17 @@ class Category(object):
             for i, href in enumerate(card_product_head):
                 link = 'https://militarist.ua' + href.get('href')
                 name = href.find('span').text
-                hash2 = hash(link)
+             
+                hash_object = hashlib.sha1(str.encode(link))
+                hex_dig = hash_object.hexdigest()
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
-                if hash2 not in hashes:
+                if hex_dig not in hashes:
               
-                    hashes.append(hash2)
+                    hashes.append(hex_dig)
                     product = Product(name)
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
-                    product.hash = hash2
+                    product.hash = hex_dig
         
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
@@ -281,8 +284,9 @@ class Category(object):
 
                     sql1 = '''select hash from products;'''
                     cursor.execute(sql1)
-                    for i in self.products:
-                        for item in cursor.fetchall():
+                  
+                    for item in cursor.fetchall():
+                        for i in self.products:
                             if i.hash != item:
                                 values_products = []
                                 values_dates = []
@@ -292,8 +296,8 @@ class Category(object):
                                 for prod in self.products:
                                     values_products.append((prod.hash, prod.name, prod.link))
                                     values_dates.append((time, prod.price))
-                                cursor.executemany("UPDATE products(hash, name, link) VALUES(%s,%s,%s)", values_products)
-                                cursor.executemany("UPDATE products_data(time, price) VALUES(%s,%s)", values_dates)
+                                cursor.executemany("UPDATE products SET(hash, name, link) VALUES(%s,%s,%s)", values_products)
+                                cursor.executemany("UPDATE products_data SET(time, price) VALUES(%s,%s)", values_dates)
                             
 
 
