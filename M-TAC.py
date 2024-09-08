@@ -40,7 +40,7 @@ commands = (
         """
         CREATE TABLE IF NOT EXISTS products(
             product_id SERIAL PRIMARY KEY,
-            hash BYTEA,
+            hash BIGINT,
             name VARCHAR(250) NOT NULL,
             link VARCHAR(250) NOT NULL
             )
@@ -195,14 +195,13 @@ class Category(object):
                 hash_object = hashlib.sha1(str.encode(link))
                 hex_dig = hash_object.hexdigest()
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
-                if hex_dig not in hashes:
+                if hash_object not in hashes:
               
-                    hashes.append(hex_dig)
+                    hashes.append(hash_object)
                     product = Product(name)
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
-                    product.hash = hex_dig
-        
+                    product.hash = hash_object
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -394,7 +393,7 @@ async def main():
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
     root.get_all_products()
-    root.refresh_products()
+
 
 
     print(f'Время прошло{time.monotonic() - start_time}')
