@@ -40,7 +40,7 @@ commands = (
         """
         CREATE TABLE IF NOT EXISTS products(
             product_id SERIAL PRIMARY KEY,
-            hash BIGINT,
+            hash BYTEA,
             name VARCHAR(250) NOT NULL,
             link VARCHAR(250) NOT NULL
             )
@@ -102,9 +102,18 @@ def get_proxy_response(url):
             break
     return response
 
-
+def convertTuple(tup):
+      
+    str1 = ''
+    for item in tup:
+        item = str(item, 'utf8')
+        str1 = str1 + item
+    return str1
         
-
+def get_md5(data):
+    m = hashlib.md5()
+    m.update(data)
+    return m.hexdigest()[:8]
 
 class Category(object):
     def __init__(self, name):
@@ -192,8 +201,9 @@ class Category(object):
                 link = 'https://militarist.ua' + href.get('href')
                 name = href.find('span').text
              
-                hash_object = hashlib.sha1(str.encode(link))
-                hex_dig = hash_object.hexdigest()
+                hash_object = get_md5(str.encode(link))
+               
+                #hex_dig = hash_object.hexdigest()
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
                 if hash_object not in hashes:
               
@@ -202,6 +212,7 @@ class Category(object):
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash_object
+                    print(product.hash)
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -238,12 +249,12 @@ class Category(object):
                             values_dates.append((time, prod.price))
                         cursor.executemany("INSERT INTO products(hash, name, link) VALUES(%s,%s,%s)", values_products)
                         cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
-                        sql1 = '''select * from products_data;'''
+                        #sql1 = '''select * from products_data;'''
+                        sql1 = '''select hash from products;'''
                         cursor.execute(sql1)
 
                         # for i in cursor.fetchall():
-                        #     print(i)
-                 
+                        #     print(convertTuple(i))
                  
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
@@ -275,28 +286,46 @@ class Category(object):
 
 
     def refresh_products(self):
+      
         try:
             config = load_config()
-
+            
             with  psycopg2.connect(**config) as conn:
                 with  conn.cursor() as cursor:
-
+                   
                     sql1 = '''select hash from products;'''
                     cursor.execute(sql1)
-                  
-                    for item in cursor.fetchall():
-                        for i in self.products:
-                            if i.hash != item:
-                                values_products = []
-                                values_dates = []
-                        
-                                time = datetime.datetime.now()
-                                time = time.strftime("%Y-%m-%d %H:%M:%S") 
-                                for prod in self.products:
-                                    values_products.append((prod.hash, prod.name, prod.link))
-                                    values_dates.append((time, prod.price))
-                                cursor.executemany("UPDATE products SET(hash, name, link) VALUES(%s,%s,%s)", values_products)
-                                cursor.executemany("UPDATE products_data SET(time, price) VALUES(%s,%s)", values_dates)
+
+                    a = cursor.fetchall()
+
+                    # for item in a:
+                    #     item = convertTuple(item)
+                    #     #print(item)
+                    #     for i in self.products:
+
+                    #         if item == i.hash: print(f'hash in database {item} and hash from site {i.hash}')
+                        #     # if i.hash != item:
+                            #     values_products = []
+                            #     values_dates = []
+                            #     print('here')
+                            #     time = datetime.datetime.now()
+                            #     time = time.strftime("%Y-%m-%d %H:%M:%S") 
+                            #     update_products="UPDATE products  SET hash = %s, name = %s, link = %s"
+                            #     update_products_data="UPDATE products_data  SET time = %s, price = %s"
+                                
+                            #     for prod in values_products: 
+                            #         cursor.execute(update_products,prod) 
+                            #     for prod in values_dates: 
+                            #         cursor.execute(update_products_data,prod) 
+
+                            #     for prod in self.products:
+                            #         values_products.append((prod.hash, prod.name, prod.link))
+                            #         values_dates.append((time, prod.price))
+
+
+
+                                # cursor.executemany("UPDATE products SET(hash, name, link) VALUES(%s,%s,%s)", values_products)
+                                # cursor.executemany("UPDATE products_data SET(time, price) VALUES(%s,%s)", values_dates)
                             
 
 
@@ -393,7 +422,7 @@ async def main():
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
     root.get_all_products()
-
+    root.refresh_products()
 
 
     print(f'Время прошло{time.monotonic() - start_time}')
