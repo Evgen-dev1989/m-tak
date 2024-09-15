@@ -24,7 +24,8 @@ from config import load_config
 import json
 from json import dumps, loads
 s = Session()
-import hashlib
+import mmh3
+import struct
 
 url = 'https://militarist.ua/ua/'
 
@@ -39,8 +40,7 @@ commands = (
         """,
         """
         CREATE TABLE IF NOT EXISTS products(
-            product_id SERIAL PRIMARY KEY,
-            hash BYTEA,
+            product_id BIGINT PRIMARY KEY,
             name VARCHAR(250) NOT NULL,
             link VARCHAR(250) NOT NULL
             )
@@ -102,18 +102,12 @@ def get_proxy_response(url):
             break
     return response
 
-def convertTuple(tup):
-      
-    str1 = ''
-    for item in tup:
-        item = str(item, 'utf8')
-        str1 = str1 + item
-    return str1
+def murmurhash_64bit(data):
+
+    hash_value = mmh3.hash64(data)
+
+    return struct.pack('q', hash_value[0])
         
-def get_md5(data):
-    m = hashlib.md5()
-    m.update(data)
-    return m.hexdigest()[:8]
 
 class Category(object):
     def __init__(self, name):
@@ -201,18 +195,19 @@ class Category(object):
                 link = 'https://militarist.ua' + href.get('href')
                 name = href.find('span').text
              
-                hash_object = get_md5(str.encode(link))
-               
-                #hex_dig = hash_object.hexdigest()
+                hash_object = murmurhash_64bit(link)
+                # hash_8bit = hash_object.to_bytes(8, byteorder='little')
+                hash_64 = int.from_bytes(hash_object, byteorder='little', signed=True)
+     
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
-                if hash_object not in hashes:
+                if hash_64 not in hashes:
               
-                    hashes.append(hash_object)
+                    hashes.append(hash_64)
                     product = Product(name)
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
-                    product.hash = hash_object
-                    print(product.hash)
+                    product.hash = hash_64
+                    #print(product.hash)
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -247,14 +242,14 @@ class Category(object):
                         for prod in self.products:
                             values_products.append((prod.hash, prod.name, prod.link))
                             values_dates.append((time, prod.price))
-                        cursor.executemany("INSERT INTO products(hash, name, link) VALUES(%s,%s,%s)", values_products)
-                        cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
+                        # cursor.executemany("INSERT INTO products(product_id, name, link) VALUES(%s,%s,%s)", values_products)
+                        # cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
                         #sql1 = '''select * from products_data;'''
-                        sql1 = '''select hash from products;'''
+                        sql1 = '''select * from products;'''
                         cursor.execute(sql1)
 
-                        # for i in cursor.fetchall():
-                        #     print(convertTuple(i))
+                        for i in cursor.fetchall():
+                            print(i)
                  
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
@@ -298,13 +293,13 @@ class Category(object):
 
                     a = cursor.fetchall()
 
-                    # for item in a:
-                    #     item = convertTuple(item)
-                    #     #print(item)
-                    #     for i in self.products:
+                    for item in a:
+                        hash_int = item[0]
+                        #print(hash_int)
+                        for i in self.products:
 
-                    #         if item == i.hash: print(f'hash in database {item} and hash from site {i.hash}')
-                        #     # if i.hash != item:
+                            if hash_int == i.hash: print(f'hash in database {hash_int} and hash from site {i.hash}')
+                            # if i.hash != item:
                             #     values_products = []
                             #     values_dates = []
                             #     print('here')
@@ -339,8 +334,6 @@ class Category(object):
         
 
 class Product():
-
-
 
     def __init__(self, name):
         self.hashes = []
@@ -422,7 +415,7 @@ async def main():
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
     root.get_all_products()
-    root.refresh_products()
+    #root.refresh_products()
 
 
     print(f'Время прошло{time.monotonic() - start_time}')
