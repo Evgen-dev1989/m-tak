@@ -81,8 +81,12 @@ try:
 
     asyncio.run(run())
 
+except asyncpg.exceptions.PostgresError as db_error:
+    print("error of database:", db_error)
+except ConnectionError as conn_error:
+    print("Connection error:", conn_error)
 except Exception as error:
-    print(error)
+    print("another error:", error)
 
 
 
