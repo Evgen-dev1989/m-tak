@@ -19,6 +19,7 @@ import random
 from chrome_version import Chrome
 import pandas as pd
 import psycopg2
+import asyncpg
 import connect
 from config import load_config
 import json
@@ -32,6 +33,7 @@ url = 'https://militarist.ua/ua/'
 conn = psycopg2.connect(**load_config())
 
 commands = (
+      
         """
             DROP TABLE IF EXISTS products CASCADE;
         """,
@@ -58,14 +60,30 @@ commands = (
         """      
 )
 
+# try:
+#     config = load_config()
+#     with psycopg2.connect(**config) as conn:
+#         with conn.cursor() as cur:
+#             for command in commands:
+#                 cur.execute(command)
+# except (psycopg2.DatabaseError, Exception) as error:
+#     print(error)
+
+
+
 try:
-    config = load_config()
-    with psycopg2.connect(**config) as conn:
-        with conn.cursor() as cur:
-            for command in commands:
-                cur.execute(command)
-except (psycopg2.DatabaseError, Exception) as error:
+    async def run():
+        conn = await asyncpg.connect(user='postgres', password='1111',
+                                     database='m-tak', host='localhost')
+        for command in commands:
+            await conn.execute(command)
+        await conn.close()
+
+    asyncio.run(run())
+
+except Exception as error:
     print(error)
+
 
 
 if os.path.exists('root.bin'):
@@ -242,14 +260,14 @@ class Category(object):
                         for prod in self.products:
                             values_products.append((prod.hash, prod.name, prod.link))
                             values_dates.append((time, prod.price))
-                        # cursor.executemany("INSERT INTO products(product_id, name, link) VALUES(%s,%s,%s)", values_products)
-                        # cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
+                        cursor.executemany("INSERT INTO products(product_id, name, link) VALUES(%s,%s,%s) ON CONFLICT (product_id) DO NOTHING;", values_products)
+                        cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
                         #sql1 = '''select * from products_data;'''
-                        sql1 = '''select * from products;'''
-                        cursor.execute(sql1)
+                        #sql1 = '''select * from products;'''
+                      
 
-                        for i in cursor.fetchall():
-                            print(i)
+                        # for i in cursor.fetchall():
+                        #     print(i)
                  
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
@@ -289,6 +307,7 @@ class Category(object):
                 with  conn.cursor() as cursor:
                    
                     sql1 = '''select hash from products;'''
+                    
                     cursor.execute(sql1)
 
                     a = cursor.fetchall()
@@ -416,8 +435,9 @@ async def main():
     #print(f'before all_products: {time.monotonic() - start_time}')
     root.get_all_products()
     #root.refresh_products()
-
+    
 
     print(f'Время прошло{time.monotonic() - start_time}')
 if __name__ == '__main__': 
+
     asyncio.run(main())
