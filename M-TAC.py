@@ -273,6 +273,9 @@ class Category(object):
                     
                     # for command in commands:
                     #     await conn.execute(command)
+                    sql = await conn.fetch("SELECT name, link FROM products")
+                    for i in sql:
+                        print(i)
                     await conn.close()
                 if not asyncio.get_event_loop().is_running():
                     asyncio.run(run())
@@ -337,7 +340,7 @@ class Category(object):
 
 
 
-    def refresh_products(self):
+    async def refresh_products(self):
       
         try:
             config = load_config()
@@ -473,7 +476,7 @@ async def main():
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
     await root.get_all_products()
-    #root.refresh_products()
+    #await root.refresh_products()
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
