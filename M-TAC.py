@@ -234,10 +234,10 @@ class Category(object):
                     self.products.append(product)
 
        
-    def get_all_products(self):
+    async def get_all_products(self):
         if len(self.subgroups)>0:
             for sub in self.subgroups:
-                sub.get_all_products()
+                await sub.get_all_products()
         if len(self.products)>0 and self.products:
             name = []
             price = []
@@ -251,31 +251,66 @@ class Category(object):
                 #print(values)
             config = load_config()
 
-   
-            try:
-                with  psycopg2.connect(**config) as conn:
-                    with  conn.cursor() as cursor:
 
-                        values_products = []
-                        values_dates = []
+            try:
+                async def run():
+                    conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
+                    
+
+                    values_products = []
+                    values_dates = []
+            
+                    time = datetime.datetime.now()
+                    #time = time.strftime("%Y-%m-%d %H:%M:%S") 
+                    for prod in self.products:
+                        values_products.append((prod.hash, prod.name, prod.link))
+                        values_dates.append((time, prod.price))
+                    # await conn.execute('''
+                    #                     INSERT INTO users(name, dob) VALUES($1, $2)
+                    #                 ''', 'Bob', datetime.date(1984, 3, 1))
+                    await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
+                    await conn.executemany("INSERT INTO products_data(time, price) VALUES($1,$2)", values_dates)
+                    
+                    # for command in commands:
+                    #     await conn.execute(command)
+                    await conn.close()
+                if not asyncio.get_event_loop().is_running():
+                    asyncio.run(run())
+                else:
+                    await run()
+
+            except asyncpg.exceptions.PostgresError as db_error:
+                print("error of database:", db_error)
+            except ConnectionError as conn_error:
+                print("Connection error:", conn_error)
+            except Exception as error:
+                print("another error:", error)
+
+
+            # try:
+            #     with  psycopg2.connect(**config) as conn:
+            #         with  conn.cursor() as cursor:
+
+            #             values_products = []
+            #             values_dates = []
                 
-                        time = datetime.datetime.now()
-                        time = time.strftime("%Y-%m-%d %H:%M:%S") 
-                        for prod in self.products:
-                            values_products.append((prod.hash, prod.name, prod.link))
-                            values_dates.append((time, prod.price))
-                        cursor.executemany("INSERT INTO products(product_id, name, link) VALUES(%s,%s,%s) ON CONFLICT (product_id) DO NOTHING;", values_products)
-                        cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
-                        #sql1 = '''select * from products_data;'''
-                        #sql1 = '''select * from products;'''
+            #             time = datetime.datetime.now()
+            #             time = time.strftime("%Y-%m-%d %H:%M:%S") 
+            #             for prod in self.products:
+            #                 values_products.append((prod.hash, prod.name, prod.link))
+            #                 values_dates.append((time, prod.price))
+            #             cursor.executemany("INSERT INTO products(product_id, name, link) VALUES(%s,%s,%s) ON CONFLICT (product_id) DO NOTHING;", values_products)
+            #             cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
+            #             sql1 = '''select * from products_data;'''
+            #             sql1 = '''select * from products;'''
                       
 
-                        # for i in cursor.fetchall():
-                        #     print(i)
+            #             # for i in cursor.fetchall():
+            #             #     print(i)
                  
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                print(error) 
+            #         conn.commit()
+            # except (Exception, psycopg2.DatabaseError) as error:
+            #     print(error) 
             
            
 
@@ -437,7 +472,7 @@ async def main():
     #print(f'before href: {time.monotonic() - start_time}')
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
-    root.get_all_products()
+    await root.get_all_products()
     #root.refresh_products()
     
 
