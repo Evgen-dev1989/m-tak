@@ -218,6 +218,7 @@ class Category(object):
                 name = href.find('span').text
              
                 hash_object = murmurhash_64bit(link)
+
                 # hash_8bit = hash_object.to_bytes(8, byteorder='little')
                 hash_64 = int.from_bytes(hash_object, byteorder='little', signed=True)
      
@@ -229,7 +230,7 @@ class Category(object):
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash_64
-                    #print(product.hash)
+          
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
 
@@ -238,7 +239,7 @@ class Category(object):
         if len(self.subgroups)>0:
             for sub in self.subgroups:
                 await sub.get_all_products()
-        if len(self.products)>0 and self.products:
+        if len(self.products)>0:
             name = []
             price = []
             link = []
@@ -273,9 +274,9 @@ class Category(object):
                     
                     # for command in commands:
                     #     await conn.execute(command)
-                    sql = await conn.fetch("SELECT name, link FROM products")
-                    for i in sql:
-                        print(i)
+                    # sql = await conn.fetch("SELECT name, link FROM products")
+                    # for i in sql:
+                    #     print(i)
                     await conn.close()
                 if not asyncio.get_event_loop().is_running():
                     asyncio.run(run())
@@ -341,55 +342,85 @@ class Category(object):
 
 
     async def refresh_products(self):
-      
+
         try:
-            config = load_config()
+            async def run():
+                conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
+        
+                sql = await conn.fetch("SELECT product_id FROM products")
+                db_hashes = {item['product_id'] for item in sql}
+
+                for i in self.products:
+                        
+                        if i.hash in db_hashes:
+                            pass
+                        else:
+                            print(f'{db_hashes} dosen`t{i.name}')
+                
+                
+                await conn.close()
+                
+        except asyncpg.exceptions.PostgresError as db_error:
+            print("error of database:", db_error)
+        except ConnectionError as conn_error:
+            print("Connection error:", conn_error)
+        except Exception as error:
+            print("another error:", error)
+
+        if not asyncio.get_event_loop().is_running():
+                    asyncio.run(run())
+        else:
+            await run()
+
+      
+        # try:
+        #     config = load_config()
             
-            with  psycopg2.connect(**config) as conn:
-                with  conn.cursor() as cursor:
+        #     with  psycopg2.connect(**config) as conn:
+        #         with  conn.cursor() as cursor:
                    
-                    sql1 = '''select hash from products;'''
+        #             sql1 = '''select hash from products;'''
                     
-                    cursor.execute(sql1)
+        #             cursor.execute(sql1)
 
-                    a = cursor.fetchall()
+        #             a = cursor.fetchall()
 
-                    for item in a:
-                        hash_int = item[0]
-                        #print(hash_int)
-                        for i in self.products:
+        #             for item in a:
+        #                 hash_int = item[0]
+        #                 #print(hash_int)
+        #                 for i in self.products:
 
-                            if hash_int == i.hash: print(f'hash in database {hash_int} and hash from site {i.hash}')
-                            # if i.hash != item:
-                            #     values_products = []
-                            #     values_dates = []
-                            #     print('here')
-                            #     time = datetime.datetime.now()
-                            #     time = time.strftime("%Y-%m-%d %H:%M:%S") 
-                            #     update_products="UPDATE products  SET hash = %s, name = %s, link = %s"
-                            #     update_products_data="UPDATE products_data  SET time = %s, price = %s"
+        #                     if hash_int == i.hash: print(f'hash in database {hash_int} and hash from site {i.hash}')
+        #                     # if i.hash != item:
+        #                     #     values_products = []
+        #                     #     values_dates = []
+        #                     #     print('here')
+        #                     #     time = datetime.datetime.now()
+        #                     #     time = time.strftime("%Y-%m-%d %H:%M:%S") 
+        #                     #     update_products="UPDATE products  SET hash = %s, name = %s, link = %s"
+        #                     #     update_products_data="UPDATE products_data  SET time = %s, price = %s"
                                 
-                            #     for prod in values_products: 
-                            #         cursor.execute(update_products,prod) 
-                            #     for prod in values_dates: 
-                            #         cursor.execute(update_products_data,prod) 
+        #                     #     for prod in values_products: 
+        #                     #         cursor.execute(update_products,prod) 
+        #                     #     for prod in values_dates: 
+        #                     #         cursor.execute(update_products_data,prod) 
 
-                            #     for prod in self.products:
-                            #         values_products.append((prod.hash, prod.name, prod.link))
-                            #         values_dates.append((time, prod.price))
+        #                     #     for prod in self.products:
+        #                     #         values_products.append((prod.hash, prod.name, prod.link))
+        #                     #         values_dates.append((time, prod.price))
 
 
 
-                                # cursor.executemany("UPDATE products SET(hash, name, link) VALUES(%s,%s,%s)", values_products)
-                                # cursor.executemany("UPDATE products_data SET(time, price) VALUES(%s,%s)", values_dates)
+        #                         # cursor.executemany("UPDATE products SET(hash, name, link) VALUES(%s,%s,%s)", values_products)
+        #                         # cursor.executemany("UPDATE products_data SET(time, price) VALUES(%s,%s)", values_dates)
                             
 
 
   
                         
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-                print(error) 
+        #         conn.commit()
+        # except (Exception, psycopg2.DatabaseError) as error:
+        #         print(error) 
 
         
         
@@ -476,7 +507,7 @@ async def main():
     root.href_all_products() 
     #print(f'before all_products: {time.monotonic() - start_time}')
     await root.get_all_products()
-    #await root.refresh_products()
+    await root.refresh_products()
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
