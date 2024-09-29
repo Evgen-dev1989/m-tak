@@ -351,11 +351,11 @@ class Category(object):
                 db_hashes = {item['product_id'] for item in sql}
 
                 for i in self.products:
-                        
+                       
                         if i.hash in db_hashes:
                             pass
                         else:
-                            print(f'{db_hashes} dosen`t{i.name}')
+                            print(f'{i.name} dosen`t  match')
                 
                 
                 await conn.close()
