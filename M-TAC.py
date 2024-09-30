@@ -50,7 +50,9 @@ commands = (
          """
         CREATE TABLE IF NOT EXISTS products_data (
                 data_id SERIAL PRIMARY KEY,
-                product_id INTEGER,
+     
+                ALTER TABLE products_data
+                ALTER COLUMN product_id TYPE BIGINT;
                 price INTEGER NOT NULL,
                 time timestamp NOT NULL,
                 FOREIGN KEY (product_id)
@@ -60,26 +62,18 @@ commands = (
         """      
 )
 
-# try:
-#     config = load_config()
-#     with psycopg2.connect(**config) as conn:
-#         with conn.cursor() as cur:
-#             for command in commands:
-#                 cur.execute(command)
-# except (psycopg2.DatabaseError, Exception) as error:
-#     print(error)
 
 
 
 try:
     async def run():
-        conn = await asyncpg.connect(user='postgres', password='1111',
-                                     database='m-tak', host='localhost')
+        conn = await asyncpg.connect(user='postgres', password='1111', database='m-tak', host='localhost')
+
         for command in commands:
             await conn.execute(command)
         await conn.close()
 
-    asyncio.run(run())
+        asyncio.run(run())
 
 except asyncpg.exceptions.PostgresError as db_error:
     print("error of database:", db_error)
@@ -95,8 +89,7 @@ if os.path.exists('root.bin'):
             try:
                load_data = pickle.load(my_file)
                room = load_data
-               
-               #print(root)
+
             except pickle.UnpicklingError:
                 print('error')
 
@@ -110,19 +103,22 @@ proxies = FreeProxy(country_id=['US', 'BR'], timeout=10, rand=True).get_proxy_li
 
 
 def get_proxy_response(url):
+
     headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.choice(room)} Safari/537.36 Edg/125.0.0.0'}  #{random.choice(room)}
             
-    
     for proxy in proxies:
-
         response = requests.get(url=url,proxies={'http': proxy}, headers=headers)
         #print(response.status_code, proxy) 
 
         if response.status_code == 200:
             break
+
     return response
+
+
+
 
 def murmurhash_64bit(data):
 
@@ -131,8 +127,11 @@ def murmurhash_64bit(data):
     return struct.pack('q', hash_value[0])
         
 
+
 class Category(object):
+
     def __init__(self, name):
+
         self.name = name
         self.products = []
         self.subgroups = []
@@ -141,8 +140,11 @@ class Category(object):
         self.response = None
         self.all_href = []
         self.__hash__ = None
+
     def showall(self):
+
         print(f'name {self.name}, link {self.link} ')
+
         if len(self.subgroups) != 0:
             for g in self.subgroups:
                 g.showall()
@@ -152,13 +154,17 @@ class Category(object):
         endpoints = []
         self.get_endpoints(endpoints)
         tasks = []
+
         for endpoint in endpoints:
             task = asyncio.create_task(endpoint.get_response())
             tasks.append(task)
+
         await asyncio.gather(*tasks)
 
     async def get_response(self):
+
         loop = asyncio.get_event_loop()
+
         if self.response is None:
             #print(self.link , self.name)
             self.response = await loop.run_in_executor(None, partial(get_proxy_response, url=self.link))
@@ -175,14 +181,16 @@ class Category(object):
             endpoints.append(self)
 
     def chek_pagination(self):
-        if len(self.subgroups) != 0:
+
+        if len(self.subgroups) > 0:
             for sub in self.subgroups:
                 sub.chek_pagination()
+
         else:
             pagination: HtmlElement = html.fromstring(self.response.text).xpath('//div[@id="pagen-block"]//nav[@class="pagination"]//a/@href')
+
             for href in pagination:
                 militarist_url = 'https://militarist.ua'
-               
                 link = militarist_url + str.strip(href)
                 #print(link)
                 g = Category(self.name)
@@ -191,18 +199,18 @@ class Category(object):
                 self.subgroups.append(g)
 
     def chek_endpoints(self):
+
         if len(self.subgroups) != 0:
-            
             [sub.chek_endpoints() for sub in self.subgroups]
     
         else:
-            
             endpoint_false: HtmlElement = html.fromstring(self.response.text).find('./div[@class="catalog-lvl1"]')
 
             if endpoint_false is not None:
                 print(f'endpoint false in  {self.link}')
             
     def href_all_products(self):
+
         endpoints = []
         
         self.get_endpoints(endpoints)
@@ -213,36 +221,36 @@ class Category(object):
             card_product_bottom: HtmlElement = html.fromstring(endpoint.response.text).xpath('.//div[@class="card_product-bottom"]')
          
             hashes = []
+
             for i, href in enumerate(card_product_head):
                 link = 'https://militarist.ua' + href.get('href')
                 name = href.find('span').text
-             
                 hash_object = murmurhash_64bit(link)
-
-                # hash_8bit = hash_object.to_bytes(8, byteorder='little')
                 hash_64 = int.from_bytes(hash_object, byteorder='little', signed=True)
-     
                 price = card_product_bottom[i].find('.//div[@class="price"]/p[@class="price_new"]').text
+
                 if hash_64 not in hashes:
-              
+
                     hashes.append(hash_64)
                     product = Product(name)
                     product.link = link
                     product.price = int(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash_64
-          
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
-
-       
+   
     async def get_all_products(self):
+
         if len(self.subgroups)>0:
             for sub in self.subgroups:
                 await sub.get_all_products()
+
         if len(self.products)>0:
+
             name = []
             price = []
             link = []
+
             for prod in self.products:
                 name.append(prod.name)
                 price.append(prod.price)
@@ -252,29 +260,25 @@ class Category(object):
                 #print(values)
             config = load_config()
 
-
             try:
                 async def run():
-                    conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
-                    
 
+                    conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
                     values_products = []
                     values_dates = []
-            
                     time = datetime.datetime.now()
-                    #time = time.strftime("%Y-%m-%d %H:%M:%S") 
+               
                     for prod in self.products:
                         values_products.append((prod.hash, prod.name, prod.link))
-                        values_dates.append((time, prod.price))
-                    # await conn.execute('''
-                    #                     INSERT INTO users(name, dob) VALUES($1, $2)
-                    #                 ''', 'Bob', datetime.date(1984, 3, 1))
+                        values_dates.append((prod.hash, time, prod.price))
+          
+
                     await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
-                    await conn.executemany("INSERT INTO products_data(time, price) VALUES($1,$2)", values_dates)
+                    #await conn.executemany("INSERT INTO products_data(product_id, time, price) VALUES($1,$2,$3)", values_dates)
                     
                     # for command in commands:
                     #     await conn.execute(command)
-                    # sql = await conn.fetch("SELECT name, link FROM products")
+                    # sql = await conn.fetch("SELECT * FROM products WHERE product_id = 412351078026438094;")
                     # for i in sql:
                     #     print(i)
                     await conn.close()
@@ -339,25 +343,20 @@ class Category(object):
             with pd.ExcelWriter('path_to_file.xlsx') as writer:
                 table.to_excel(writer)
 
-
-
     async def refresh_products(self):
 
         try:
             async def run():
+
                 conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
-        
                 sql = await conn.fetch("SELECT product_id FROM products")
                 db_hashes = {item['product_id'] for item in sql}
 
                 for i in self.products:
-                       
                         if i.hash in db_hashes:
                             pass
                         else:
                             print(f'{i.name} dosen`t  match')
-                
-                
                 await conn.close()
                 
         except asyncpg.exceptions.PostgresError as db_error:
@@ -428,26 +427,23 @@ class Category(object):
 class Product():
 
     def __init__(self, name):
+
         self.hashes = []
         self.name = name
         self.hash = None
         self.price = []
         self.link = []
-        
         self.endpoint = None
         self.response = None
 
-
 def reverse(htm: HtmlElement, cl: Category):
+
     if htm is not None:
-       
         li_elements = htm.xpath('.//ul')
-        
+    
         for element in li_elements:
         # new = li.find('./li[@class="is_new"]')
             for li in element.xpath('./li'):
-
-
                 militarist_url = 'https://militarist.ua'
                 link = li.find('./a').get('href')
                 link = militarist_url + str.strip(link)
@@ -457,17 +453,17 @@ def reverse(htm: HtmlElement, cl: Category):
                 g.link = link
                 g.name = name
                 cl.subgroups.append(g)
-            
                 ul = li.find('./ul')
+
                 if ul is not  None:
                     reverse(ul, g)
                 else:
                     continue
 
-
-    
 async def main():
+
     start_time = time.monotonic()
+
     if os.path.exists('second_responses.pkl'):
         with open('second_responses.pkl', 'rb') as my_file:
             try:
@@ -476,7 +472,6 @@ async def main():
             except pickle.UnpicklingError:
                 print('error')
     else:
-            
         response = get_proxy_response(url)
 
         for i in range(120):
@@ -491,26 +486,31 @@ async def main():
 
         root = Category('root')
     
-        
         start_element: HtmlElement = html.fromstring(response.text).find('.//div[@class="main_menu-block"]')
         reverse(start_element, root)
         
         await root.get_responses()
+
         root.chek_endpoints()
+
         root.chek_pagination()
 
         await root.get_responses()
+
         with open('second_responses.pkl', 'wb') as my_file:
             pickle.dump(root, my_file)
 
-    #print(f'before href: {time.monotonic() - start_time}')
+
     root.href_all_products() 
-    #print(f'before all_products: {time.monotonic() - start_time}')
+
     await root.get_all_products()
+
     await root.refresh_products()
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
-if __name__ == '__main__': 
 
+
+
+if __name__ == '__main__': 
     asyncio.run(main())
