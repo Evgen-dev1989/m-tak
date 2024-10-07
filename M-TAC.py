@@ -27,10 +27,11 @@ from json import dumps, loads
 s = Session()
 import mmh3
 import struct
+from database import host, database, user, password
 
 url = 'https://militarist.ua/ua/'
 
-conn = psycopg2.connect(**load_config())
+#conn = psycopg2.connect(**load_config())
 
 commands = (
       
@@ -63,24 +64,39 @@ commands = (
 )
 
 
+# try:
+#     async def run():
+#         conn = await asyncpg.connect(user='postgres', password='1111', database='m-tak', host='localhost')
 
+#         for command in commands:
+#             await conn.execute(command)
+#         await conn.close()
 
-try:
-    async def run():
-        conn = await asyncpg.connect(user='postgres', password='1111', database='m-tak', host='localhost')
+#         asyncio.run(run())
 
-        for command in commands:
-            await conn.execute(command)
-        await conn.close()
+# except asyncpg.exceptions.PostgresError as db_error:
+#     print("error of database:", db_error)
+# except ConnectionError as conn_error:
+#     print("Connection error:", conn_error)
+# except Exception as error:
+    # print("another error:", error)
 
-        asyncio.run(run())
+async def get_db_pool():
+  
+    return await asyncpg.create_pool(
+        user=user,
+        password=password,
+        database=database,
+        host=host
+    )
 
-except asyncpg.exceptions.PostgresError as db_error:
-    print("error of database:", db_error)
-except ConnectionError as conn_error:
-    print("Connection error:", conn_error)
-except Exception as error:
-    print("another error:", error)
+async def execute_db_commands(commands, pool):
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            for command in commands:
+                await conn.execute(command)
+
 
 
 
@@ -464,6 +480,39 @@ async def main():
 
     start_time = time.monotonic()
 
+    commands = (
+      
+        """
+            DROP TABLE IF EXISTS products CASCADE;
+        """,
+            """
+            DROP TABLE IF EXISTS products_data CASCADE;
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS products(
+            product_id BIGINT PRIMARY KEY,
+            name VARCHAR(250) NOT NULL,
+            link VARCHAR(250) NOT NULL
+            )
+        """,
+         """
+        CREATE TABLE IF NOT EXISTS products_data (
+                data_id SERIAL PRIMARY KEY,
+     
+                ALTER TABLE products_data
+                ALTER COLUMN product_id TYPE BIGINT;
+                price INTEGER NOT NULL,
+                time timestamp NOT NULL,
+                FOREIGN KEY (product_id)
+                REFERENCES products (product_id)
+                ON UPDATE CASCADE ON DELETE CASCADE
+                )
+        """      
+)
+    pool = await get_db_pool() 
+    await execute_db_commands(commands, pool)
+    await pool.close()
+
     if os.path.exists('second_responses.pkl'):
         with open('second_responses.pkl', 'rb') as my_file:
             try:
@@ -503,9 +552,9 @@ async def main():
 
     root.href_all_products() 
 
-    await root.get_all_products()
+    # await root.get_all_products()
 
-    await root.refresh_products()
+    # await root.refresh_products()
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
