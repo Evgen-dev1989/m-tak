@@ -480,38 +480,38 @@ async def main():
 
     start_time = time.monotonic()
 
-    commands = (
+#     commands = (
       
-        """
-            DROP TABLE IF EXISTS products CASCADE;
-        """,
-            """
-            DROP TABLE IF EXISTS products_data CASCADE;
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS products(
-            product_id BIGINT PRIMARY KEY,
-            name VARCHAR(250) NOT NULL,
-            link VARCHAR(250) NOT NULL
-            )
-        """,
-         """
-        CREATE TABLE IF NOT EXISTS products_data (
-                data_id SERIAL PRIMARY KEY,
+#         """
+#             DROP TABLE IF EXISTS products CASCADE;
+#         """,
+#             """
+#             DROP TABLE IF EXISTS products_data CASCADE;
+#         """,
+#         """
+#         CREATE TABLE IF NOT EXISTS products(
+#             product_id BIGINT PRIMARY KEY,
+#             name VARCHAR(250) NOT NULL,
+#             link VARCHAR(250) NOT NULL
+#             )
+#         """,
+#          """
+#         CREATE TABLE IF NOT EXISTS products_data (
+#                 data_id SERIAL PRIMARY KEY,
      
-                ALTER TABLE products_data
-                ALTER COLUMN product_id TYPE BIGINT;
-                price INTEGER NOT NULL,
-                time timestamp NOT NULL,
-                FOREIGN KEY (product_id)
-                REFERENCES products (product_id)
-                ON UPDATE CASCADE ON DELETE CASCADE
-                )
-        """      
-)
-    pool = await get_db_pool() 
-    await execute_db_commands(commands, pool)
-    await pool.close()
+#                 ALTER TABLE products_data
+#                 ALTER COLUMN product_id TYPE BIGINT;
+#                 price INTEGER NOT NULL,
+#                 time timestamp NOT NULL,
+#                 FOREIGN KEY (product_id)
+#                 REFERENCES products (product_id)
+#                 ON UPDATE CASCADE ON DELETE CASCADE
+#                 )
+#         """      
+# )
+#     pool = await get_db_pool() 
+#     await execute_db_commands(commands, pool)
+#     await pool.close()
 
     if os.path.exists('second_responses.pkl'):
         with open('second_responses.pkl', 'rb') as my_file:
@@ -521,18 +521,18 @@ async def main():
             except pickle.UnpicklingError:
                 print('error')
     else:
+
+        # for i in range(120):
+        #     response = get_proxy_response(url)
+        #     status = response.status_code
+        #     print('response', i, status)
+
+        #     if status == 200:
+        #         break
+        #     if i == 119:
+        #             print('False')
+        #             sys.exit()
         response = get_proxy_response(url)
-
-        for i in range(120):
-            status = response.status_code
-            print('response', i, status)
-
-            if status == 200:
-                break
-            if i == 119:
-                    print('False')
-                    sys.exit()
-
         root = Category('root')
     
         start_element: HtmlElement = html.fromstring(response.text).find('.//div[@class="main_menu-block"]')
