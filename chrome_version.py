@@ -46,20 +46,7 @@ class Chrome(object):
             self.response = await loop.run_in_executor(None, partial(requests.get, url=self.url, headers=headers))
            
 
-
-    def get_ADRESS(self):
-        for link in self.links:
-            #response = requests.get(url=link, headers=headers)
-            element: HtmlElement = html.fromstring(self.response.text).find('.//div[@class="table-responsive"]//tbody') 
-            element = element.xpath('./tr')
-            for i in element:
-                link = str.strip(i.find('./td').text)
-                
-                self.address.append(link)
-                #print(len(self.adress))
-
-
-    def chek_pagination(self):
+    def check_pagination(self):
         self.response = requests.get(url=self.url, headers=headers)
         
         pagin: HtmlElement = html.fromstring(self.response.text).xpath('.//div[@class="paging"]/a')
@@ -69,39 +56,37 @@ class Chrome(object):
             self.links.append(link_pagin)
             #print(link_pagin)
 
+    def get_address(self):
+        for link in self.links:
+            #response = requests.get(url=link, headers=headers)
+            element: HtmlElement = html.fromstring(self.response.text).find('.//div[@class="table-responsive"]//tbody') 
+            element = element.xpath('./tr')
+            for i in element:
+                link = str.strip(i.find('./td').text)
+                
+                self.address.append(link)
+                with open('chrome_version.txt', 'a') as file:
+                    file.write(link + '\n')
+
+
+
 
 async def main():
     start_time = time.monotonic()
 
-
-    # if os.path.exists('root.bin'):
-    #     with open('root.bin', 'rb') as my_file:
-    #         try:
-    #            load_data = pickle.load(my_file)
-    #            root = load_data
-    #         except pickle.UnpicklingError:
-    #             print('error')
-    # else:
-        
-    #     root = Chrome()
-    #     root.url = 'https://www.cvedetails.com/version-list/1224/15031/1/Google-Chrome.html?sha=77c8b67f5f2ab2ef1626d2990521d8f55926f9eb&order=1&trc=9258'
-
-    #     root.chek_pagination()
-    #     await root.get_responses()
-    #     root.get_ADRESS()
-
     root = Chrome()
     root.url = 'https://www.cvedetails.com/version-list/1224/15031/1/Google-Chrome.html?sha=77c8b67f5f2ab2ef1626d2990521d8f55926f9eb&order=1&trc=9258'
 
-    root.chek_pagination()
+    root.check_pagination()
     await root.get_responses()
-    root.get_ADRESS()
+    root.get_address()
     
 
-    with open('root.bin', 'wb') as my_file:
-        pickle.dump(root.address, my_file)
+    # with open('root.bin', 'wb') as my_file:
+    #     pickle.dump(root.address, my_file)
 
-
+    # with open('chrome_version.txt', 'w') as file:
+    #             file.write(root.address)
 
     print(f'Время прошло{time.monotonic() - start_time}')
 if __name__ == '__main__': 
