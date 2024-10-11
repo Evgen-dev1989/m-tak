@@ -119,10 +119,11 @@ proxies = FreeProxy(country_id=['US', 'BR'], timeout=10, rand=True).get_proxy_li
 
 
 def get_proxy_response(url):
-
-    headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.choice(room)} Safari/537.36 Edg/125.0.0.0'}  #{random.choice(room)}
+    with open('chrome_version.txt', 'r') as my_file:
+                    for version in my_file:
+                        headers = {
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                            'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{(version)} Safari/537.36 Edg/125.0.0.0'}  #{random.choice(room)}
             
     for proxy in proxies:
         response = requests.get(url=url,proxies={'http': proxy}, headers=headers)
@@ -522,17 +523,17 @@ async def main():
                 print('error')
     else:
 
-        # for i in range(120):
-        #     response = get_proxy_response(url)
-        #     status = response.status_code
-        #     print('response', i, status)
+        for i in range(120):
+            response = get_proxy_response(url)
+            status = response.status_code
+            print('response', i, status)
 
-        #     if status == 200:
-        #         break
-        #     if i == 119:
-        #             print('False')
-        #             sys.exit()
-        response = get_proxy_response(url)
+            if status == 200:
+                break
+            if i == 119:
+                    print('False')
+                    sys.exit()
+    
         root = Category('root')
     
         start_element: HtmlElement = html.fromstring(response.text).find('.//div[@class="main_menu-block"]')

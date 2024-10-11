@@ -48,7 +48,7 @@ class Chrome(object):
 
     def check_pagination(self):
         self.response = requests.get(url=self.url, headers=headers)
-        
+        print(self.response.status_code)
         pagin: HtmlElement = html.fromstring(self.response.text).xpath('.//div[@class="paging"]/a')
         for i in pagin:
             link_pagin = Chrome()
@@ -61,12 +61,18 @@ class Chrome(object):
             #response = requests.get(url=link, headers=headers)
             element: HtmlElement = html.fromstring(self.response.text).find('.//div[@class="table-responsive"]//tbody') 
             element = element.xpath('./tr')
+            write_list = []
             for i in element:
-                link = str.strip(i.find('./td').text)
+                link = str.strip(i.find('./td').text) 
                 
+                write_list.append(link)
                 self.address.append(link)
-                with open('chrome_version.txt', 'a') as file:
-                    file.write(link + '\n')
+            with open('chrome_version.txt', 'w+') as f:
+                for items in write_list:
+                    f.write('%s\n' %items)
+                f.close()   
+            # with open('chrome_version.txt', 'a') as file:
+            #     file.write(link)
 
 
 
