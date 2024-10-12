@@ -4,8 +4,7 @@ import requests
 from lxml import html
 from lxml.html import HtmlElement
 import time
-from datetime import date
-import datetime
+from datetime import date, datetime
 import asyncio
 from functools import partial
 import random
@@ -29,9 +28,10 @@ import mmh3
 import struct
 from database import host, database, user, password
 
-url = 'https://militarist.ua/ua/'
+
 
 #conn = psycopg2.connect(**load_config())
+url = 'https://militarist.ua/ua/'
 
 commands = (
       
@@ -97,42 +97,37 @@ async def execute_db_commands(commands, pool):
             for command in commands:
                 await conn.execute(command)
 
-
-
-
-if os.path.exists('root.bin'):
-        with open('root.bin', 'rb') as my_file:
-            try:
-               load_data = pickle.load(my_file)
-               room = load_data
-
-            except pickle.UnpicklingError:
-                print('error')
-
-else:
-    print('root.bin isn`t')
-    room = Chrome()
-
-
 proxies = FreeProxy(country_id=['US', 'BR'], timeout=10, rand=True).get_proxy_list(1)
 
-
-
 def get_proxy_response(url):
+
     with open('chrome_version.txt', 'r') as my_file:
-                    for version in my_file:
-                        headers = {
-                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                            'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{(version)} Safari/537.36 Edg/125.0.0.0'}  #{random.choice(room)}
+        for proxy in proxies:            
+            for version in my_file:
             
-    for proxy in proxies:
-        response = requests.get(url=url,proxies={'http': proxy}, headers=headers)
-        #print(response.status_code, proxy) 
+                version = version[0:-1]
 
-        if response.status_code == 200:
-            break
+                headers = {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Safari/537.36 Edg/125.0.0.0'}  #{random.choice(room)}
 
+                response = requests.get(url=url,proxies={'http': proxy}, headers=headers)
+
+                if response.status_code == 200:
+                    break
+                else: 
+                    # TODO Make control of HTTP response status codes
+                    for i in range(20):
+                        status = response.status_code 
+                        if status == 503:
+                            i +=1
+                            if i > 25:
+                                break
+                        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tip:{version}\tStatus{response.status_code }')
+                    
     return response
+
+
 
 
 
@@ -481,6 +476,8 @@ async def main():
 
     start_time = time.monotonic()
 
+    
+
 #     commands = (
       
 #         """
@@ -514,8 +511,8 @@ async def main():
 #     await execute_db_commands(commands, pool)
 #     await pool.close()
 
-    if os.path.exists('second_responses.pkl'):
-        with open('second_responses.pkl', 'rb') as my_file:
+    if os.path.exists('old_responses.pkl'):
+        with open('old_responses.pkl', 'rb') as my_file:
             try:
                 load_data = pickle.load(my_file)
                 root = load_data
@@ -533,7 +530,7 @@ async def main():
             if i == 119:
                     print('False')
                     sys.exit()
-    
+ 
         root = Category('root')
     
         start_element: HtmlElement = html.fromstring(response.text).find('.//div[@class="main_menu-block"]')
@@ -541,17 +538,17 @@ async def main():
         
         await root.get_responses()
 
-        root.chek_endpoints()
+        # root.chek_endpoints()
 
-        root.chek_pagination()
+        # root.chek_pagination()
 
-        await root.get_responses()
+        # await root.get_responses()
 
-        with open('second_responses.pkl', 'wb') as my_file:
-            pickle.dump(root, my_file)
+        # with open('old_responses.pkl', 'wb') as my_file:
+        #     pickle.dump(root, my_file)
 
 
-    root.href_all_products() 
+    # root.href_all_products() 
 
     # await root.get_all_products()
 

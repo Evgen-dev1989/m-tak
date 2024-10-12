@@ -67,13 +67,11 @@ class Chrome(object):
                 
                 write_list.append(link)
                 self.address.append(link)
-            with open('chrome_version.txt', 'w+') as f:
+            with open('chrome_versions.txt', 'w+') as f:
                 for items in write_list:
                     f.write('%s\n' %items)
                 f.close()   
-            # with open('chrome_version.txt', 'a') as file:
-            #     file.write(link)
-
+       
 
 
 
@@ -86,13 +84,7 @@ async def main():
     root.check_pagination()
     await root.get_responses()
     root.get_address()
-    
 
-    # with open('root.bin', 'wb') as my_file:
-    #     pickle.dump(root.address, my_file)
-
-    # with open('chrome_version.txt', 'w') as file:
-    #             file.write(root.address)
 
     print(f'Время прошло{time.monotonic() - start_time}')
 if __name__ == '__main__': 
