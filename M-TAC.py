@@ -97,14 +97,16 @@ async def execute_db_commands(commands, pool):
             for command in commands:
                 await conn.execute(command)
 
-proxies = FreeProxy(country_id=['US', 'BR'], timeout=10, rand=True).get_proxy_list(1)
+proxies = FreeProxy().get_proxy_list(1)
 
 def get_proxy_response(url):
 
     with open('chrome_version.txt', 'r') as my_file:
-        for proxy in proxies:            
+        for proxy in proxies:
+            #print(proxy)
+            attempts = 0            
             for version in my_file:
-            
+                attempts += 1
                 version = version[0:-1]
 
                 headers = {
@@ -114,17 +116,16 @@ def get_proxy_response(url):
                 response = requests.get(url=url,proxies={'http': proxy}, headers=headers)
 
                 if response.status_code == 200:
-                    break
+                    return response
                 else: 
                     # TODO Make control of HTTP response status codes
-                    for i in range(20):
-                        status = response.status_code 
-                        if status == 503:
-                            i +=1
-                            if i > 25:
-                                break
-                        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tip:{version}\tStatus{response.status_code }')
-                    
+                    if response.status_code == 503:
+                        attempts += 1
+                    if attempts == 3:
+                        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{attempts}\tversion:{version}\tstatus:{response.status_code}.')
+                        break
+            
+       
     return response
 
 
