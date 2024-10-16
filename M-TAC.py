@@ -26,6 +26,7 @@ from json import dumps, loads
 s = Session()
 import mmh3
 import struct
+from collections import deque
 from database import host, database, user, password
 
 
@@ -99,35 +100,42 @@ async def execute_db_commands(commands, pool):
 
 proxies = FreeProxy().get_proxy_list(1)
 
+with open('chrome_version.txt', 'r') as my_file:
+    
+        versions = deque([version.strip() for version in my_file])
+
+proxies = deque([proxy for proxy in proxies])
+        
 def get_proxy_response(url):
+    
+            attempts = 0  
 
-    with open('chrome_version.txt', 'r') as my_file:
-        for proxy in proxies:
-            #print(proxy)
-            attempts = 0            
-            for version in my_file:
-                attempts += 1
-                version = version[0:-1]
+            while versions:
+                while proxies:
+                    attempts += 1
+                    version = versions.popleft() 
+                    proxy = proxies.popleft()
+                    headers = {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Safari/537.36 Edg/125.0.0.0'
+                    }
 
-                headers = {
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Safari/537.36 Edg/125.0.0.0'}  #{random.choice(room)}
+                    response = requests.get(url=url, proxies={'http': proxy}, headers=headers)
 
-                response = requests.get(url=url,proxies={'http': proxy}, headers=headers)
+                    if response.status_code == 200:
+                        return response 
+    
+                    else:
+                        if response.status_code == 503:
+                            if attempts < 5:
+                                versions.append(version)
+                                proxies.append(proxy)
+                                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{attempts}\tversion:{version}\tstatus:{response.status_code}.')
+                            else:
+                                print(f'Превышено количество попыток для proxy {proxy}')
+                                break  
 
-                if response.status_code == 200:
-                    return response
-                else: 
-                    # TODO Make control of HTTP response status codes
-                    if response.status_code == 503:
-                        attempts += 1
-                    if attempts == 3:
-                        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{attempts}\tversion:{version}\tstatus:{response.status_code}.')
-                        break
-            
-       
-    return response
-
+                return response
 
 
 
