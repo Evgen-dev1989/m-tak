@@ -108,34 +108,45 @@ proxies = deque([proxy for proxy in proxies])
         
 def get_proxy_response(url):
     
-            attempts = 0  
+    MAX_V_ATTEMPTS = 5
 
-            while versions:
-                while proxies:
-                    attempts += 1
-                    version = versions.popleft() 
-                    proxy = proxies.popleft()
-                    headers = {
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                        'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Safari/537.36 Edg/125.0.0.0'
-                    }
+    p_attempt = 0
+    while p_attempt < len(proxies) + 1:
 
-                    response = requests.get(url=url, proxies={'http': proxy}, headers=headers)
+        proxy = proxies[0]
+        p_attempt += 1
 
-                    if response.status_code == 200:
-                        return response 
-    
-                    else:
-                        if response.status_code == 503:
-                            if attempts < 5:
-                                versions.append(version)
-                                proxies.append(proxy)
-                                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{attempts}\tversion:{version}\tstatus:{response.status_code}.')
-                            else:
-                                print(f'Превышено количество попыток для proxy {proxy}')
-                                break  
+        v_attempt = 0 
+        while v_attempt < MAX_V_ATTEMPTS + 1:
 
-                return response
+            version = versions[0]
+            v_attempt += 1
+
+            # headers = {
+            #     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            #     'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Safari/537.36 Edg/125.0.0.0'
+            #     }
+
+            headers = {
+                'User-Agent': f'Chrome/{version}'
+            }
+
+            response = requests.get(url=url, proxies={'http': proxy}, headers=headers)
+
+            if response.status_code == 200:
+                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{v_attempt}\tversion:{version}\tstatus:{response.status_code}.')
+                return response 
+            elif response.status_code == 503:             
+                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{v_attempt}\tversion:{version}\tstatus:{response.status_code}.')
+            else:
+                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tUnhandled error status code:{response.status_code}')
+            
+            versions.append(versions.popleft())
+
+        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tProxy {proxy} compromised\tProxy attempt:{p_attempt}')
+        proxies.append(proxies.popleft())
+
+    print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tFailed retrieve response from url:{url}')
 
 
 
