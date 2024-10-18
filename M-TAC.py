@@ -134,16 +134,17 @@ def get_proxy_response(url):
             response = requests.get(url=url, proxies={'http': proxy}, headers=headers)
 
             if response.status_code == 200:
-                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{v_attempt}\tversion:{version}\tstatus:{response.status_code}.')
+            
                 return response 
-            elif response.status_code == 503:             
-                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{v_attempt}\tversion:{version}\tstatus:{response.status_code}.')
-            else:
-                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tUnhandled error status code:{response.status_code}')
+
+            # elif response.status_code == 503:             
+            #     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{v_attempt}\tversion:{version}\tstatus:{response.status_code}.')
+            # else:
+            #     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tUnhandled error status code:{response.status_code}')
             
             versions.append(versions.popleft())
 
-        print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tProxy {proxy} compromised\tProxy attempt:{p_attempt}')
+        #print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tProxy {proxy} compromised\tProxy attempt:{p_attempt}')
         proxies.append(proxies.popleft())
 
     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tFailed retrieve response from url:{url}')
@@ -558,11 +559,11 @@ async def main():
         
         await root.get_responses()
 
-        # root.chek_endpoints()
+        root.chek_endpoints()
 
-        # root.chek_pagination()
+        root.chek_pagination()
 
-        # await root.get_responses()
+        await root.get_responses()
 
         # with open('old_responses.pkl', 'wb') as my_file:
         #     pickle.dump(root, my_file)
