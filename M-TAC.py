@@ -1,4 +1,4 @@
-import sqlite3
+#import sqlite3
 from requests import Session
 import requests
 from lxml import html
@@ -7,7 +7,7 @@ import time
 from datetime import date, datetime
 import asyncio
 from functools import partial
-import random
+#import random
 import sys
 import logging
 import functools
@@ -15,33 +15,35 @@ import pickle
 import os.path
 from fp.fp import FreeProxy
 import random
-from chrome_version import Chrome
 import pandas as pd
-import psycopg2
 import asyncpg
-import connect
-from config import load_config
 import json
 from json import dumps, loads
-s = Session()
 import mmh3
 import struct
 from collections import deque
+from decimal import *
 from database import host, database, user, password
+#import psycopg2
+#import connect
+#from chrome_version import Chrome
+#from config import load_config
+# s = Session()
 
 
 
 #conn = psycopg2.connect(**load_config())
 url = 'https://militarist.ua/ua/'
 
+
 commands = (
       
-        """
-            DROP TABLE IF EXISTS products CASCADE;
-        """,
-            """
-            DROP TABLE IF EXISTS products_data CASCADE;
-        """,
+        # """
+        #     DROP TABLE IF EXISTS products CASCADE;
+        # """,
+        #     """
+        #     DROP TABLE IF EXISTS products_data CASCADE;
+        # """,
         """
         CREATE TABLE IF NOT EXISTS products(
             product_id BIGINT PRIMARY KEY,
@@ -51,16 +53,14 @@ commands = (
         """,
          """
         CREATE TABLE IF NOT EXISTS products_data (
-                data_id SERIAL PRIMARY KEY,
-     
-                ALTER TABLE products_data
-                ALTER COLUMN product_id TYPE BIGINT;
-                price INTEGER NOT NULL,
-                time timestamp NOT NULL,
-                FOREIGN KEY (product_id)
-                REFERENCES products (product_id)
-                ON UPDATE CASCADE ON DELETE CASCADE
-                )
+            data_id SERIAL PRIMARY KEY,
+            time timestamp NOT NULL,
+            product_id BIGINT,
+            price DECIMAL NOT NULL,
+            FOREIGN KEY (product_id)
+            REFERENCES products (product_id)
+            ON UPDATE CASCADE ON DELETE CASCADE
+            )
         """      
 )
 
@@ -95,6 +95,7 @@ async def execute_db_commands(commands, pool):
 
     async with pool.acquire() as conn:
         async with conn.transaction():
+
             for command in commands:
                 await conn.execute(command)
 
@@ -213,7 +214,7 @@ class Category(object):
             #if self.response is None:
             endpoints.append(self)
 
-    def chek_pagination(self):
+    def cheсk_pagination(self):
 
         if len(self.subgroups) > 0:
             for sub in self.subgroups:
@@ -231,7 +232,7 @@ class Category(object):
                 g.name = self.name
                 self.subgroups.append(g)
 
-    def chek_endpoints(self):
+    def cheсk_endpoints(self):
 
         if len(self.subgroups) != 0:
             [sub.chek_endpoints() for sub in self.subgroups]
@@ -267,11 +268,34 @@ class Category(object):
                     hashes.append(hash_64)
                     product = Product(name)
                     product.link = link
-                    product.price = int(price.replace(' ', '').replace('грн.', ''))
+                    product.price = Decimal(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash_64
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
    
+    async def run(self):
+
+        conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
+        values_products = []
+        values_dates = []
+        time = datetime.now()
+    
+        for prod in self.products:
+            values_products.append((prod.hash, prod.name, prod.link))
+            values_dates.append((time, prod.hash, prod.price))
+
+
+        await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
+        await conn.executemany("INSERT INTO products_data(data_id, time, product_id, price) VALUES(DEFAULT,$1,$2,$3)", values_dates)
+        
+        # for command in commands:
+        #     await conn.execute(command)
+        # sql = await conn.fetch("SELECT * FROM products WHERE product_id = 412351078026438094;")
+        # for i in sql:
+        #     print(i)
+        await conn.close()
+
+
     async def get_all_products(self):
 
         if len(self.subgroups)>0:
@@ -291,34 +315,14 @@ class Category(object):
 
                 #values = [(prod.name, prod.price, prod.link)]
                 #print(values)
-            config = load_config()
+            #config = load_config()
 
             try:
-                async def run():
-
-                    conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
-                    values_products = []
-                    values_dates = []
-                    time = datetime.datetime.now()
-               
-                    for prod in self.products:
-                        values_products.append((prod.hash, prod.name, prod.link))
-                        values_dates.append((prod.hash, time, prod.price))
-          
-
-                    await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
-                    #await conn.executemany("INSERT INTO products_data(product_id, time, price) VALUES($1,$2,$3)", values_dates)
-                    
-                    # for command in commands:
-                    #     await conn.execute(command)
-                    # sql = await conn.fetch("SELECT * FROM products WHERE product_id = 412351078026438094;")
-                    # for i in sql:
-                    #     print(i)
-                    await conn.close()
+                
                 if not asyncio.get_event_loop().is_running():
-                    asyncio.run(run())
+                    asyncio.run(self.run())
                 else:
-                    await run()
+                    await self.run()
 
             except asyncpg.exceptions.PostgresError as db_error:
                 print("error of database:", db_error)
@@ -355,7 +359,7 @@ class Category(object):
             
            
 
-            dt = datetime.datetime.now() 
+            dt = datetime.now() 
             current_datetime = dt.strftime("%Y-%m-%d %H:%M:%S") 
             table = pd.DataFrame({
         'name': [name for name in name],
@@ -497,40 +501,9 @@ async def main():
 
     start_time = time.monotonic()
 
-    
-
-#     commands = (
-      
-#         """
-#             DROP TABLE IF EXISTS products CASCADE;
-#         """,
-#             """
-#             DROP TABLE IF EXISTS products_data CASCADE;
-#         """,
-#         """
-#         CREATE TABLE IF NOT EXISTS products(
-#             product_id BIGINT PRIMARY KEY,
-#             name VARCHAR(250) NOT NULL,
-#             link VARCHAR(250) NOT NULL
-#             )
-#         """,
-#          """
-#         CREATE TABLE IF NOT EXISTS products_data (
-#                 data_id SERIAL PRIMARY KEY,
-     
-#                 ALTER TABLE products_data
-#                 ALTER COLUMN product_id TYPE BIGINT;
-#                 price INTEGER NOT NULL,
-#                 time timestamp NOT NULL,
-#                 FOREIGN KEY (product_id)
-#                 REFERENCES products (product_id)
-#                 ON UPDATE CASCADE ON DELETE CASCADE
-#                 )
-#         """      
-# )
-#     pool = await get_db_pool() 
-#     await execute_db_commands(commands, pool)
-#     await pool.close()
+    pool = await get_db_pool() 
+    await execute_db_commands(commands, pool)
+    await pool.close()
 
     if os.path.exists('old_responses.pkl'):
         with open('old_responses.pkl', 'rb') as my_file:
@@ -559,19 +532,19 @@ async def main():
         
         await root.get_responses()
 
-        root.chek_endpoints()
+        root.cheсk_endpoints()
 
-        root.chek_pagination()
+        root.cheсk_pagination()
 
         await root.get_responses()
 
-        # with open('old_responses.pkl', 'wb') as my_file:
-        #     pickle.dump(root, my_file)
+        with open('old_responses.pkl', 'wb') as my_file:
+            pickle.dump(root, my_file)
 
 
-    # root.href_all_products() 
+    root.href_all_products() 
 
-    # await root.get_all_products()
+    await root.get_all_products()
 
     # await root.refresh_products()
     
