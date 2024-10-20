@@ -99,6 +99,24 @@ async def execute_db_commands(commands, pool):
             for command in commands:
                 await conn.execute(command)
 
+async def connect():
+    try:
+        conn = await asyncpg.connect(user=user, password=password, database=database, host=host)
+        return conn
+            
+    except asyncpg.exceptions.PostgresError as db_error:
+        print("error of database:", db_error)
+    except ConnectionError as conn_error:
+        print("Connection error:", conn_error)
+    except Exception as error:
+        print("another error:", error)
+
+    if not asyncio.get_event_loop().is_running():
+                asyncio.run(connect())
+    else:
+        await connect()
+    return None
+
 proxies = FreeProxy().get_proxy_list(1)
 
 with open('chrome_version.txt', 'r') as my_file:
@@ -273,9 +291,10 @@ class Category(object):
                     #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
    
-    async def run(self):
+    async def insert_data(self):
 
-        conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
+        # conn = await asyncpg.connect(user=user, password=password, database=database, host=host)
+        conn = await connect()
         values_products = []
         values_dates = []
         time = datetime.now()
@@ -320,9 +339,9 @@ class Category(object):
             try:
                 
                 if not asyncio.get_event_loop().is_running():
-                    asyncio.run(self.run())
+                    asyncio.run(self.insert_data())
                 else:
-                    await self.run()
+                    await self.insert_data()
 
             except asyncpg.exceptions.PostgresError as db_error:
                 print("error of database:", db_error)
@@ -385,7 +404,7 @@ class Category(object):
         try:
             async def run():
 
-                conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
+                conn = await asyncpg.connect(user=user, password=password, database=database, host=host)
                 sql = await conn.fetch("SELECT product_id FROM products")
                 db_hashes = {item['product_id'] for item in sql}
 
