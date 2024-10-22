@@ -362,68 +362,32 @@ class Category(object):
                 table.to_excel(writer)
     
 
-            # try:
-            #     with  psycopg2.connect(**config) as conn:
-            #         with  conn.cursor() as cursor:
-
-            #             values_products = []
-            #             values_dates = []
-                
-            #             time = datetime.datetime.now()
-            #             time = time.strftime("%Y-%m-%d %H:%M:%S") 
-            #             for prod in self.products:
-            #                 values_products.append((prod.hash, prod.name, prod.link))
-            #                 values_dates.append((time, prod.price))
-            #             cursor.executemany("INSERT INTO products(product_id, name, link) VALUES(%s,%s,%s) ON CONFLICT (product_id) DO NOTHING;", values_products)
-            #             cursor.executemany("INSERT INTO products_data(time, price) VALUES(%s,%s)", values_dates)
-            #             sql1 = '''select * from products_data;'''
-            #             sql1 = '''select * from products;'''
-                      
-
-            #             # for i in cursor.fetchall():
-            #             #     print(i)
-                 
-            #         conn.commit()
-            # except (Exception, psycopg2.DatabaseError) as error:
-            #     print(error) 
-            
            
     async def refresh_products(self):
         conn = await connect()
     
         try:
-            async def run():
-                sql = await conn.fetch("SELECT product_id FROM products")
-                db_hashes = {item['product_id'] for item in sql}
+            sql = await conn.fetch("SELECT product_id FROM products")
+            db_hashes = {item['product_id'] for item in sql}
 
-                values_products = []
-                values_dates = []
-                time = datetime.now()
-                
-                for prod in self.products:
-                    if prod.hash not in db_hashes:
-                        print(f'{prod.name} doesn`t match')
-                        values_products.append((prod.hash, prod.name, prod.link))
-                        values_dates.append((time, prod.hash, prod.price))
-                
-                if values_products:
-                    await conn.executemany(
-                """
-                INSERT INTO products (product_id, name, link)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (product_id) DO NOTHING
-                """,
-                values_products
-            )
-        
-                if values_dates:
-                    await conn.executemany(
-                """
-                INSERT INTO products_data (time, product_id, price)
-                VALUES ($1, $2, $3)
-                """,
-                values_dates
-            )
+            values_products = []
+            values_dates = []
+            time = datetime.now()
+            
+            for prod in self.products:
+                if prod.hash not in db_hashes:
+                    print(f'{prod.name} doesn`t match')
+                    values_products.append((prod.hash, prod.name, prod.link))
+                    values_dates.append((time, prod.hash, prod.price))
+            
+            if values_products:
+                await conn.executemany(
+            """
+            INSERT INTO products (product_id, name, link) VALUES ($1, $2, $3) ON CONFLICT (product_id) DO NOTHING""", values_products)
+    
+            if values_dates:
+                await conn.executemany(
+            """INSERT INTO products_data (time, product_id, price) VALUES ($1, $2, $3)""", values_dates)
 
         except asyncpg.exceptions.PostgresError as db_error:
             print("Error updating product:", db_error)
@@ -433,58 +397,36 @@ class Category(object):
                 await conn.close()
                 print("Connection closed")
 
-      
-        # try:
-        #     config = load_config()
+
+    async def update_products(self):
+        conn = await connect()
+        try:
+            # Получаем данные из таблицы products_data
+            sql = await conn.fetch("SELECT product_id, price FROM products_data")
             
-        #     with  psycopg2.connect(**config) as conn:
-        #         with  conn.cursor() as cursor:
-                   
-        #             sql1 = '''select hash from products;'''
-                    
-        #             cursor.execute(sql1)
+            db_prices = {item['product_id']: item['price'] for item in sql}
 
-        #             a = cursor.fetchall()
+            for prod in self.products:
+                if prod.hash in db_prices:
+                    db_price = db_prices[prod.hash]
+                    if prod.price != db_price:
+                        print(f"Price mismatch for {prod.name}: {prod.price} != {db_price}")
+                        await conn.execute(""" UPDATE products_data SET price = $1 WHERE product_id = $2 """, prod.price, prod.hash)
+                else:
+                    print(f"{prod.name} not found in the database")
+                    await self.refresh_products()
 
-        #             for item in a:
-        #                 hash_int = item[0]
-        #                 #print(hash_int)
-        #                 for i in self.products:
-
-        #                     if hash_int == i.hash: print(f'hash in database {hash_int} and hash from site {i.hash}')
-        #                     # if i.hash != item:
-        #                     #     values_products = []
-        #                     #     values_dates = []
-        #                     #     print('here')
-        #                     #     time = datetime.datetime.now()
-        #                     #     time = time.strftime("%Y-%m-%d %H:%M:%S") 
-        #                     #     update_products="UPDATE products  SET hash = %s, name = %s, link = %s"
-        #                     #     update_products_data="UPDATE products_data  SET time = %s, price = %s"
-                                
-        #                     #     for prod in values_products: 
-        #                     #         cursor.execute(update_products,prod) 
-        #                     #     for prod in values_dates: 
-        #                     #         cursor.execute(update_products_data,prod) 
-
-        #                     #     for prod in self.products:
-        #                     #         values_products.append((prod.hash, prod.name, prod.link))
-        #                     #         values_dates.append((time, prod.price))
+        except asyncpg.exceptions.PostgresError as db_error:
+            print("Error fetching products data:", db_error)
+                
+        finally:
+            if conn:
+                await conn.close()
+                print("Connection closed")
+           
 
 
 
-        #                         # cursor.executemany("UPDATE products SET(hash, name, link) VALUES(%s,%s,%s)", values_products)
-        #                         # cursor.executemany("UPDATE products_data SET(time, price) VALUES(%s,%s)", values_dates)
-                            
-
-
-  
-                        
-        #         conn.commit()
-        # except (Exception, psycopg2.DatabaseError) as error:
-        #         print(error) 
-
-        
-        
 
 class Product():
 
@@ -572,6 +514,7 @@ async def main():
     await root.get_all_products()
 
     await root.refresh_products()
+    await root.update_products()
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
