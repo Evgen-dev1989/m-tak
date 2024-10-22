@@ -101,20 +101,17 @@ async def execute_db_commands(commands, pool):
 
 async def connect():
     try:
-        conn = await asyncpg.connect(user=user, password=password, database=database, host=host)
+        conn = await asyncpg.connect(user=user, password=password, 
+                                     database=database, host=host)
         return conn
-            
+
     except asyncpg.exceptions.PostgresError as db_error:
-        print("error of database:", db_error)
+        print("Database error:", db_error)
     except ConnectionError as conn_error:
         print("Connection error:", conn_error)
     except Exception as error:
-        print("another error:", error)
+        print("Unexpected error:", error)
 
-    if not asyncio.get_event_loop().is_running():
-                asyncio.run(connect())
-    else:
-        await connect()
     return None
 
 proxies = FreeProxy().get_proxy_list(1)
@@ -343,13 +340,27 @@ class Category(object):
                 else:
                     await self.insert_data()
 
-            except asyncpg.exceptions.PostgresError as db_error:
-                print("error of database:", db_error)
-            except ConnectionError as conn_error:
-                print("Connection error:", conn_error)
             except Exception as error:
                 print("another error:", error)
 
+            dt = datetime.now() 
+            current_datetime = dt.strftime("%Y-%m-%d %H:%M:%S") 
+            table = pd.DataFrame({
+        'name': [name for name in name],
+        'price': [price for price in price],
+        'link': [link for link in link],
+        'time': current_datetime,
+    })
+
+            result = table.to_json(orient="records")
+            parsed = loads(result)
+       
+            with open('table.json', 'w') as f:
+                f.write(dumps(parsed, indent=4))
+
+            with pd.ExcelWriter('path_to_file.xlsx') as writer:
+                table.to_excel(writer)
+    
 
             # try:
             #     with  psycopg2.connect(**config) as conn:
@@ -377,55 +388,50 @@ class Category(object):
             #     print(error) 
             
            
-
-            dt = datetime.now() 
-            current_datetime = dt.strftime("%Y-%m-%d %H:%M:%S") 
-            table = pd.DataFrame({
-        'name': [name for name in name],
-        'price': [price for price in price],
-        'link': [link for link in link],
-        'time': current_datetime,
-    })
-
-            result = table.to_json(orient="records")
-            parsed = loads(result)
-       
-            with open('table.json', 'w') as f:
-                f.write(dumps(parsed, indent=4))
-
-            # with open('table.json') as f:
-            #     print(f.read())
-            
-            with pd.ExcelWriter('path_to_file.xlsx') as writer:
-                table.to_excel(writer)
-
     async def refresh_products(self):
-
+        conn = await connect()
+    
         try:
             async def run():
-
-                conn = await asyncpg.connect(user=user, password=password, database=database, host=host)
                 sql = await conn.fetch("SELECT product_id FROM products")
                 db_hashes = {item['product_id'] for item in sql}
 
-                for i in self.products:
-                        if i.hash in db_hashes:
-                            pass
-                        else:
-                            print(f'{i.name} dosen`t  match')
-                await conn.close()
+                values_products = []
+                values_dates = []
+                time = datetime.now()
                 
-        except asyncpg.exceptions.PostgresError as db_error:
-            print("error of database:", db_error)
-        except ConnectionError as conn_error:
-            print("Connection error:", conn_error)
-        except Exception as error:
-            print("another error:", error)
+                for prod in self.products:
+                    if prod.hash not in db_hashes:
+                        print(f'{prod.name} doesn`t match')
+                        values_products.append((prod.hash, prod.name, prod.link))
+                        values_dates.append((time, prod.hash, prod.price))
+                
+                if values_products:
+                    await conn.executemany(
+                """
+                INSERT INTO products (product_id, name, link)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (product_id) DO NOTHING
+                """,
+                values_products
+            )
+        
+                if values_dates:
+                    await conn.executemany(
+                """
+                INSERT INTO products_data (time, product_id, price)
+                VALUES ($1, $2, $3)
+                """,
+                values_dates
+            )
 
-        if not asyncio.get_event_loop().is_running():
-                    asyncio.run(run())
-        else:
-            await run()
+        except asyncpg.exceptions.PostgresError as db_error:
+            print("Error updating product:", db_error)
+
+        finally:
+            if conn:
+                await conn.close()
+                print("Connection closed")
 
       
         # try:
@@ -565,7 +571,7 @@ async def main():
 
     await root.get_all_products()
 
-    # await root.refresh_products()
+    await root.refresh_products()
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
