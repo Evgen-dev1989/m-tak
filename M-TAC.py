@@ -53,14 +53,16 @@ commands = (
         """,
          """
         CREATE TABLE IF NOT EXISTS products_data (
-            data_id SERIAL PRIMARY KEY,
-            time timestamp NOT NULL,
-            product_id BIGINT,
-            price DECIMAL NOT NULL,
-            FOREIGN KEY (product_id)
-            REFERENCES products (product_id)
-            ON UPDATE CASCADE ON DELETE CASCADE
-            )
+    data_id SERIAL,
+    time TIMESTAMP NOT NULL,
+    product_id BIGINT,
+    price DECIMAL NOT NULL,
+
+    FOREIGN KEY (product_id)
+        REFERENCES products (product_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
         """      
 )
 
@@ -295,14 +297,21 @@ class Category(object):
         values_products = []
         values_dates = []
         time = datetime.now()
-    
+
         for prod in self.products:
             values_products.append((prod.hash, prod.name, prod.link))
             values_dates.append((time, prod.hash, prod.price))
-
+            unique_values_dates = list({(v[0], v[1]): v for v in values_dates}.values())
+        # await conn.execute("""ALTER TABLE products_data 
+        #                   ADD CONSTRAINT example_table_pk PRIMARY KEY (time, product_id);""")
+      
+#         await conn.execute("""
+#     DROP TABLE products_data;
+#     DROP TABLE products;
+# """)
 
         await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
-        await conn.executemany("INSERT INTO products_data(data_id, time, product_id, price) VALUES(DEFAULT,$1,$2,$3)", values_dates)
+        await conn.executemany("INSERT INTO products_data(data_id, time, product_id, price) VALUES(DEFAULT,$1,$2,$3)", unique_values_dates )
         
         # for command in commands:
         #     await conn.execute(command)
@@ -395,13 +404,12 @@ class Category(object):
         finally:
             if conn:
                 await conn.close()
-                print("Connection closed")
+            
 
 
     async def update_products(self):
         conn = await connect()
         try:
-            # Получаем данные из таблицы products_data
             sql = await conn.fetch("SELECT product_id, price FROM products_data")
             
             db_prices = {item['product_id']: item['price'] for item in sql}
@@ -422,9 +430,6 @@ class Category(object):
         finally:
             if conn:
                 await conn.close()
-                print("Connection closed")
-           
-
 
 
 
@@ -510,9 +515,7 @@ async def main():
 
 
     root.href_all_products() 
-
     await root.get_all_products()
-
     await root.refresh_products()
     await root.update_products()
     

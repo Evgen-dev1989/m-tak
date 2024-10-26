@@ -5,7 +5,7 @@ async def main():
 
     conn = await asyncpg.connect(user='postgres', password='1111',database='m-tak', host='localhost')
 
-    a = await conn.fetch('SELECT * FROM products WHERE product_id = 4189599120588895377;')
+    a = await conn.fetch('SELECT * FROM products_data;')
     print(a)
 
 
