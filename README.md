@@ -1,0 +1,1 @@
+wrote a script to collect information from the site in asynchronous mode (asyncio), waiting for many requests for the server to respond, using a proxy (FreeProxy), saving information in a database (asyncpg) and in files (pandas, DataFrame), each product has its own key, its own URL after processing by hashing (mmh3)
