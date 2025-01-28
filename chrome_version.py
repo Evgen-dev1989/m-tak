@@ -15,15 +15,11 @@ import os.path
 from fp.fp import FreeProxy
 import random
 
-#url = 'https://www.cvedetails.com/version-list/1224/15031/1/Google-Chrome.html?sha=77c8b67f5f2ab2ef1626d2990521d8f55926f9eb&order=1&trc=9258'
 
 headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0'
             }
-
-# response = requests.get(url=url, headers=headers)
-# start_element: HtmlElement = html.fromstring(response.text)
 
 
 class Chrome(object):
@@ -54,11 +50,10 @@ class Chrome(object):
             link_pagin = Chrome()
             link_pagin.url = "https://www.cvedetails.com/" + i.get('href')
             self.links.append(link_pagin)
-            #print(link_pagin)
 
     def get_address(self):
         for link in self.links:
-            #response = requests.get(url=link, headers=headers)
+ 
             element: HtmlElement = html.fromstring(self.response.text).find('.//div[@class="table-responsive"]//tbody') 
             element = element.xpath('./tr')
             write_list = []

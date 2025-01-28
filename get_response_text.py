@@ -1,12 +1,6 @@
-import sqlite3
 import requests
 from lxml import html
 from lxml.html import HtmlElement
-import time
-import asyncio
-from functools import partial
-import random
-import sys
 
 
 url = 'https://militarist.ua/ua/catalog/weapon-accessories/tyuning-oruzhiya/soshki/'

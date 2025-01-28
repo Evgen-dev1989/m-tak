@@ -1,4 +1,4 @@
-#import sqlite3
+
 from requests import Session
 import requests
 from lxml import html
@@ -7,14 +7,10 @@ import time
 from datetime import date, datetime
 import asyncio
 from functools import partial
-#import random
 import sys
-import logging
-import functools
 import pickle
 import os.path
 from fp.fp import FreeProxy
-import random
 import pandas as pd
 import asyncpg
 import json
@@ -24,11 +20,6 @@ import struct
 from collections import deque
 from decimal import *
 from database import host, database, user, password
-#import psycopg2
-#import connect
-#from chrome_version import Chrome
-#from config import load_config
-# s = Session()
 
 
 

@@ -2,7 +2,6 @@ import requests
 from fp.fp import FreeProxy
 from lxml import html
 from lxml.html import HtmlElement
-import os
 import random
 
 def get_proxy_response(url, proxies):
@@ -23,17 +22,9 @@ def get_proxy_response(url, proxies):
     return response
 
 
-
 proxies = FreeProxy(country_id=['US', 'BR'], timeout=0.3, rand=True).get_proxy_list(1)
-#print(proxy)
-# proxies = {
-#     'http': proxy
- 
-# }
 
 url = 'https://militarist.ua/ua/'
-
-
 
 for i in range(1000):
     
