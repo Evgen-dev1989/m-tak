@@ -1,8 +1,10 @@
+import random
+
 import requests
 from fp.fp import FreeProxy
 from lxml import html
 from lxml.html import HtmlElement
-import random
+
 
 def get_proxy_response(url, proxies):
 

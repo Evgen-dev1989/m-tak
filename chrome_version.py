@@ -1,20 +1,19 @@
+import asyncio
+import functools
+import logging
+import os.path
+import pickle
+import random
 import sqlite3
-from requests import Session
+import sys
+import time
+from functools import partial
+
 import requests
+from fp.fp import FreeProxy
 from lxml import html
 from lxml.html import HtmlElement
-import time
-import asyncio
-from functools import partial
-import random
-import sys
-import logging
-import functools
-import pickle
-import os.path
-from fp.fp import FreeProxy
-import random
-
+from requests import Session
 
 headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -38,30 +37,34 @@ class Chrome(object):
             await asyncio.gather(*tasks)
 
     async def get_response(self):
+            
             loop = asyncio.get_event_loop()
             self.response = await loop.run_in_executor(None, partial(requests.get, url=self.url, headers=headers))
            
 
     def check_pagination(self):
+
         self.response = requests.get(url=self.url, headers=headers)
         print(self.response.status_code)
         pagin: HtmlElement = html.fromstring(self.response.text).xpath('.//div[@class="paging"]/a')
+        
         for i in pagin:
             link_pagin = Chrome()
             link_pagin.url = "https://www.cvedetails.com/" + i.get('href')
             self.links.append(link_pagin)
 
     def get_address(self):
+
         for link in self.links:
- 
             element: HtmlElement = html.fromstring(self.response.text).find('.//div[@class="table-responsive"]//tbody') 
             element = element.xpath('./tr')
             write_list = []
+
             for i in element:
                 link = str.strip(i.find('./td').text) 
-                
                 write_list.append(link)
                 self.address.append(link)
+
             with open('chrome_versions.txt', 'w+') as f:
                 for items in write_list:
                     f.write('%s\n' %items)

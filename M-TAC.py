@@ -1,40 +1,31 @@
 
-from requests import Session
+import asyncio
+import json
+import os.path
+import pickle
+import struct
+import sys
+import time
+from collections import deque
+from datetime import date, datetime
+from decimal import *
+from functools import partial
+from json import dumps, loads
+
+import asyncpg
+import mmh3
+import pandas as pd
 import requests
+from database import database, host, password, user
+from fp.fp import FreeProxy
 from lxml import html
 from lxml.html import HtmlElement
-import time
-from datetime import date, datetime
-import asyncio
-from functools import partial
-import sys
-import pickle
-import os.path
-from fp.fp import FreeProxy
-import pandas as pd
-import asyncpg
-import json
-from json import dumps, loads
-import mmh3
-import struct
-from collections import deque
-from decimal import *
-from database import host, database, user, password
+from requests import Session
 
-
-
-#conn = psycopg2.connect(**load_config())
 url = 'https://militarist.ua/ua/'
-
 
 commands = (
       
-        # """
-        #     DROP TABLE IF EXISTS products CASCADE;
-        # """,
-        #     """
-        #     DROP TABLE IF EXISTS products_data CASCADE;
-        # """,
         """
         CREATE TABLE IF NOT EXISTS products(
             product_id BIGINT PRIMARY KEY,
@@ -57,24 +48,6 @@ commands = (
         """      
 )
 
-
-# try:
-#     async def run():
-#         conn = await asyncpg.connect(user='postgres', password='1111', database='m-tak', host='localhost')
-
-#         for command in commands:
-#             await conn.execute(command)
-#         await conn.close()
-
-#         asyncio.run(run())
-
-# except asyncpg.exceptions.PostgresError as db_error:
-#     print("error of database:", db_error)
-# except ConnectionError as conn_error:
-#     print("Connection error:", conn_error)
-# except Exception as error:
-    # print("another error:", error)
-
 async def get_db_pool():
   
     return await asyncpg.create_pool(
@@ -93,6 +66,7 @@ async def execute_db_commands(commands, pool):
                 await conn.execute(command)
 
 async def connect():
+
     try:
         conn = await asyncpg.connect(user=user, password=password, 
                                      database=database, host=host)
@@ -131,11 +105,6 @@ def get_proxy_response(url):
             version = versions[0]
             v_attempt += 1
 
-            # headers = {
-            #     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            #     'User-Agent': f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Safari/537.36 Edg/125.0.0.0'
-            #     }
-
             headers = {
                 'User-Agent': f'Chrome/{version}'
             }
@@ -145,15 +114,9 @@ def get_proxy_response(url):
             if response.status_code == 200:
             
                 return response 
-
-            # elif response.status_code == 503:             
-            #     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tproxy:{proxy}\tattempt:{v_attempt}\tversion:{version}\tstatus:{response.status_code}.')
-            # else:
-            #     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tUnhandled error status code:{response.status_code}')
             
             versions.append(versions.popleft())
 
-        #print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tProxy {proxy} compromised\tProxy attempt:{p_attempt}')
         proxies.append(proxies.popleft())
 
     print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\tm:get_proxy_response\tFailed retrieve response from url:{url}')
@@ -188,6 +151,7 @@ class Category(object):
         print(f'name {self.name}, link {self.link} ')
 
         if len(self.subgroups) != 0:
+
             for g in self.subgroups:
                 g.showall()
 
@@ -208,7 +172,6 @@ class Category(object):
         loop = asyncio.get_event_loop()
 
         if self.response is None:
-            #print(self.link , self.name)
             self.response = await loop.run_in_executor(None, partial(get_proxy_response, url=self.link))
  
     def get_endpoints(self, endpoints: list):
@@ -234,7 +197,6 @@ class Category(object):
             for href in pagination:
                 militarist_url = 'https://militarist.ua'
                 link = militarist_url + str.strip(href)
-                #print(link)
                 g = Category(self.name)
                 g.link = link
                 g.name = self.name
@@ -258,7 +220,6 @@ class Category(object):
         self.get_endpoints(endpoints)
      
         for endpoint in endpoints:
-            #print(endpoint.response.text)
             card_product_head: HtmlElement = html.fromstring(endpoint.response.text).xpath('.//div[@class="card_product-head"]/a')
             card_product_bottom: HtmlElement = html.fromstring(endpoint.response.text).xpath('.//div[@class="card_product-bottom"]')
          
@@ -278,38 +239,30 @@ class Category(object):
                     product.link = link
                     product.price = Decimal(price.replace(' ', '').replace('грн.', ''))
                     product.hash = hash_64
-                    #print(f'name: {product.name}, price: {product.price}')
                     self.products.append(product)
    
     async def insert_data(self):
+        conn = None
+        try:
+            conn = await connect()
+            values_products = []
+            values_dates = []
+            time = datetime.now()
 
-        # conn = await asyncpg.connect(user=user, password=password, database=database, host=host)
-        conn = await connect()
-        values_products = []
-        values_dates = []
-        time = datetime.now()
+            for prod in self.products:
+                values_products.append((prod.hash, prod.name, prod.link))
+                values_dates.append((time, prod.hash, prod.price))
+                unique_values_dates = list({(v[0], v[1]): v for v in values_dates}.values())
 
-        for prod in self.products:
-            values_products.append((prod.hash, prod.name, prod.link))
-            values_dates.append((time, prod.hash, prod.price))
-            unique_values_dates = list({(v[0], v[1]): v for v in values_dates}.values())
-        # await conn.execute("""ALTER TABLE products_data 
-        #                   ADD CONSTRAINT example_table_pk PRIMARY KEY (time, product_id);""")
-      
-#         await conn.execute("""
-#     DROP TABLE products_data;
-#     DROP TABLE products;
-# """)
+            await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
+            await conn.executemany("INSERT INTO products_data(data_id, time, product_id, price) VALUES(DEFAULT,$1,$2,$3)", unique_values_dates )
 
-        await conn.executemany("INSERT INTO products(product_id, name, link) VALUES($1,$2,$3) ON CONFLICT (product_id) DO NOTHING;", values_products)
-        await conn.executemany("INSERT INTO products_data(data_id, time, product_id, price) VALUES(DEFAULT,$1,$2,$3)", unique_values_dates )
-        
-        # for command in commands:
-        #     await conn.execute(command)
-        # sql = await conn.fetch("SELECT * FROM products WHERE product_id = 412351078026438094;")
-        # for i in sql:
-        #     print(i)
-        await conn.close()
+        except asyncpg.exceptions.PostgresError as db_error:
+            print("Error updating product:", db_error)
+
+        finally:
+            if conn is not None:  
+                await conn.close()
 
 
     async def get_all_products(self):
@@ -328,10 +281,6 @@ class Category(object):
                 name.append(prod.name)
                 price.append(prod.price)
                 link.append(prod.link)
-
-                #values = [(prod.name, prod.price, prod.link)]
-                #print(values)
-            #config = load_config()
 
             try:
                 
@@ -364,9 +313,10 @@ class Category(object):
 
            
     async def refresh_products(self):
-        conn = await connect()
-    
+        
+        conn = None
         try:
+            conn = await connect()
             sql = await conn.fetch("SELECT product_id FROM products")
             db_hashes = {item['product_id'] for item in sql}
 
@@ -393,14 +343,16 @@ class Category(object):
             print("Error updating product:", db_error)
 
         finally:
-            if conn:
+            if conn is not None:  
                 await conn.close()
             
 
 
     async def update_products(self):
-        conn = await connect()
+
+        conn = None
         try:
+            conn = await connect()
             sql = await conn.fetch("SELECT product_id, price FROM products_data")
             
             db_prices = {item['product_id']: item['price'] for item in sql}
@@ -419,7 +371,7 @@ class Category(object):
             print("Error fetching products data:", db_error)
                 
         finally:
-            if conn:
+            if conn is not None:  
                 await conn.close()
 
 
@@ -442,7 +394,6 @@ def reverse(htm: HtmlElement, cl: Category):
         li_elements = htm.xpath('.//ul')
     
         for element in li_elements:
-        # new = li.find('./li[@class="is_new"]')
             for li in element.xpath('./li'):
                 militarist_url = 'https://militarist.ua'
                 link = li.find('./a').get('href')
@@ -476,7 +427,6 @@ async def main():
             except pickle.UnpicklingError:
                 print('error')
     else:
-
         for i in range(120):
             response = get_proxy_response(url)
             status = response.status_code
@@ -512,8 +462,6 @@ async def main():
     
 
     print(f'Время прошло{time.monotonic() - start_time}')
-
-
 
 if __name__ == '__main__': 
     asyncio.run(main())
